@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Predictor Pro</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: white; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding-top: 50px; padding-bottom: 50px;}
+        .container { background-color: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; max-width: 450px; width: 90%; }
+        h1 { color: #ff9800; margin-bottom: 5px; }
+        p.subtitulo { color: #aaa; font-size: 14px; margin-top: 0; margin-bottom: 20px;}
+        select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; background-color: #333; color: white; box-sizing: border-box;}
+        select:focus { outline: 2px solid #ff9800; }
+        button { background-color: #ff9800; color: #121212; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 20px;}
+        button:hover { background-color: #e68a00; }
+        .resultado { margin-top: 25px; padding: 20px; background-color: #2a2a2a; border-radius: 8px; display: none; border-left: 5px solid #ff9800; text-align: left;}
+        .total { font-size: 36px; font-weight: bold; color: #4caf50; text-align: center; margin: 10px 0;}
+        .jugadores-lista { list-style-type: none; padding-left: 0; margin-top: 5px; margin-bottom: 15px;}
+        .jugadores-lista li { margin-bottom: 5px; font-size: 14px; color: #ddd;}
+        .equipo-titulo { color: #ff9800; font-weight: bold; margin-top: 15px; margin-bottom: 5px; font-size: 15px;}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🏀 NBA Predictor Pro</h1>
+        <p class="subtitulo">Predicciones basadas en datos reales de la temporada.</p>
+        
+        <label for="local" style="display:block; text-align:left; margin-top:15px; font-size:14px; color:#aaa;">Equipo Local:</label>
+        <select id="local">
+            {% for equipo in equipos %}
+                <option value="{{ equipo }}">{{ equipo }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="visitante" style="display:block; text-align:left; margin-top:15px; font-size:14px; color:#aaa;">Equipo Visitante:</label>
+        <select id="visitante">
+            {% for equipo in equipos %}
+                <option value="{{ equipo }}">{{ equipo }}</option>
+            {% endfor %}
+        </select>
+        
+        <button onclick="calcular()">Predecir Partido</button>
+
+        <div id="resultado" class="resultado">
+            <!-- Aquí se inyectan los datos con JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        async function calcular() {
+            const local = document.getElementById('local').value;
+            const visitante = document.getElementById('visitante').value;
+            const divResultado = document.getElementById('resultado');
+            
+            divResultado.style.display = 'block';
+            divResultado.innerHTML = '<p style="text-align:center;">Calculando probabilidades... ⏳</p>';
+
+            try {
+                const respuesta = await fetch(`/predecir?local=${local}&visitante=${visitante}`);
+                const datos = await respuesta.json();
+
+                if (datos.error) {
+                    divResultado.innerHTML = `<p style="color:red; text-align:center;">${datos.error}</p>`;
+                    return;
+                }
+
+                let htmlJugadoresLocal = "";
+                let htmlJugadoresVisitante = "";
+
+                if (datos.jugadores_local && datos.jugadores_local.length > 0) {
+                    htmlJugadoresLocal = datos.jugadores_local.map(j => 
+                        `<li>⭐ ${j.PLAYER_NAME}: <strong>${j.PTS}</strong> pts</li>`
+                    ).join('');
+                } else {
+                    htmlJugadoresLocal = "<li>No hay datos de jugadores.</li>";
+                }
+
+                if (datos.jugadores_visitante && datos.jugadores_visitante.length > 0) {
+                    htmlJugadoresVisitante = datos.jugadores_visitante.map(j => 
+                        `<li>⭐ ${j.PLAYER_NAME}: <strong>${j.PTS}</strong> pts</li>`
+                    ).join('');
+                } else {
+                    htmlJugadoresVisitante = "<li>No hay datos de jugadores.</li>";
+                }
+
+                divResultado.innerHTML = `
+                    <p style="margin:0 0 10px 0; color:white; text-align:center; font-size:18px;"><strong>${datos.local}</strong> vs <strong>${datos.visitante}</strong></p>
+                    
+                    <p style="margin:0; color:#aaa; text-align:center; font-size:14px;">Proyección Total de Puntos</p>
+                    <div class="total">${datos.total_puntos}</div>
+                    
+                    <p style="margin:5px 0; text-align:center; font-size:16px; color:#4caf50;">🏆 <strong>Favorito: ${datos.ganador}</strong></p>
+                    <p style="margin:5px 0; text-align:center; color:#aaa; font-size:13px;">Por ${datos.diferencia} puntos.</p>
+
+                    <hr style="border-color:#444; margin:15px 0;">
+                    
+                    <div style="text-align:left;">
+                        <p class="equipo-titulo">Estrellas de ${datos.local}:</p>
+                        <ul class="jugadores-lista">${htmlJugadoresLocal}</ul>
+                        
+                        <p class="equipo-titulo">Estrellas de ${datos.visitante}:</p>
+                        <ul class="jugadores-lista">${htmlJugadoresVisitante}</ul>
+                    </div>
+
+                    <p style="font-size:11px; color:#888; text-align:center; margin-top:15px;">*Promedios de puntos por partido basados en datos recientes.</p>
+                `;
+
+            } catch (error) {
+                divResultado.innerHTML = `<p style="color:red; text-align:center;">Error al calcular. Revisa la terminal.</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
